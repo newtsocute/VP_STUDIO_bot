@@ -17,7 +17,7 @@ dp = Dispatcher(storage=MemoryStorage())
 async def set_menu_button():
     await bot.set_chat_menu_button(
         menu_button=types.MenuButtonWebApp(
-            text="VP",
+            text="Онлайн запись",
             web_app=types.WebAppInfo(url=MINIAPP_URL)
         )
     )

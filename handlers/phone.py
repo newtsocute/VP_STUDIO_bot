@@ -10,10 +10,10 @@ async def ask_phone(message: types.Message, state: FSMContext):
     """Запрашиваем номер телефона"""
     keyboard = types.ReplyKeyboardMarkup(
         resize_keyboard=True,
-        keyboard=[[types.KeyboardButton(text="📱 Отправить номер телефона", request_contact=True)]]
+        keyboard=[[types.KeyboardButton(text="📱Жми сюда чтобы поделиться номером!", request_contact=True)]]
     )
     await message.answer(
-        "📲 Пожалуйста, поделитесь своим номером телефона или введите его вручную в формате +79991234567:",
+        "📲 Пожалуйста, поделитесь своим номером телефона, нажмите на кнопку внизу",
         reply_markup=keyboard
     )
     await state.set_state(UserState.waiting_for_phone)
@@ -50,7 +50,10 @@ async def process_phone_number(message: types.Message, state: FSMContext, phone:
     # ✅ Отправляем все данные админу
     await notify_admin(message.bot, gift_choice, user_name, user_id, phone)
 
-    await message.answer("✅ Спасибо! Наш администратор свяжется с вами в ближайшее время! ❤️")
+    await message.answer(
+        "✅ Спасибо! Наш администратор свяжется с вами в ближайшее время! ❤️",
+        reply_markup=types.ReplyKeyboardRemove()  # ❌ Убираем кнопку после получения номера
+    )
 
     # ✅ Чистим состояние
     await state.clear()

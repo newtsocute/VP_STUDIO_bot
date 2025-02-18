@@ -1,9 +1,11 @@
 from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.exceptions import TelegramForbiddenError
 from .fsm import UserState
-import aiosqlite  # ✅ База данных для хранения пользователей
+import aiosqlite
+import logging
 
 router = Router()
 
@@ -17,23 +19,37 @@ async def save_user(user_id: int):
 @router.message(Command("start"))
 async def start(message: types.Message, state: FSMContext):
     """Отправляем кнопку с подпиской + включаем FSM"""
-    await save_user(message.from_user.id)  # ✅ Сохраняем ID пользователя
+    try:
+        await save_user(message.from_user.id)
 
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="📢 Подписаться на канал", url="https://t.me/vp_test_bot_channel")]
-        ]
-    )
+        subscribe_keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="📢 Подписаться на канал", url="https://t.me/vp_test_bot_channel")]]
+        )
 
-    await message.answer(
-        "👋 Привет! Чтобы получить 🎁 ПОДАРОК, подпишись на наш Telegram канал и нажми на кнопку ниже! 👇",
-        reply_markup=keyboard
-    )
+        await message.answer(
+            "👋 Здравствуйте!\n"
+            "Вас приветствует VP-studio!\n"
+            "Пожалуй, лучшая сеть салонов в Приморском крае! 🎀\n\n"
+            "🎁 Подпишитесь на наш Telegram-канал, чтобы получить подарок, затем нажмите *✅ Проверить подписку*.",
+            reply_markup=subscribe_keyboard,
+            parse_mode="Markdown"
+        )
 
-    check_keyboard = ReplyKeyboardMarkup(
-        resize_keyboard=True,
-        keyboard=[[KeyboardButton(text="✅ Проверить подписку")]]
-    )
+        check_keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="✅ Проверить подписку", callback_data="check_subscription")]]
+        )
 
-    await message.answer("После подписки нажмите '✅ Проверить подписку'", reply_markup=check_keyboard)
-    await state.set_state(UserState.waiting_for_subscription)
+        await message.answer("После подписки нажмите кнопку ниже:", reply_markup=check_keyboard)
+        await state.set_state(UserState.waiting_for_subscription)
+
+    except TelegramForbiddenError:
+        logging.warning(f"🚫 Пользователь {message.from_user.id} заблокировал бота. Удаляем из базы.")
+        await remove_user_from_db(message.from_user.id)
+    except Exception as e:
+        logging.error(f"❌ Ошибка в start: {e}")
+
+async def remove_user_from_db(user_id: int):
+    """Удаление пользователя из базы данных"""
+    async with aiosqlite.connect("users.db") as db:
+        await db.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
+        await db.commit()
